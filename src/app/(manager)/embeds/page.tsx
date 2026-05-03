@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CopyableSnippet } from "@/components/CopyableSnippet";
+import { LinkChain, Sparkles } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -68,22 +69,35 @@ export default async function EmbedsPage() {
 
   return (
     <main className="space-y-8">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Widgets à intégrer
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Copiez l&apos;extrait{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
-            &lt;iframe&gt;
-          </code>{" "}
-          souhaité et collez-le sur votre site. Les widgets se rafraîchissent
-          automatiquement toutes les 2 minutes et sont liés à votre slug{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
-            {slug}
-          </code>
-          .
-        </p>
+      <section className="surface-card relative overflow-hidden p-6 sm:p-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-brand-200/40 blur-3xl"
+        />
+        <div className="relative flex items-start gap-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-lift">
+            <Sparkles size={18} />
+          </span>
+          <div>
+            <p className="section-eyebrow">Intégration</p>
+            <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-slate-900">
+              Widgets à intégrer
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Copiez l&apos;extrait{" "}
+              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
+                &lt;iframe&gt;
+              </code>{" "}
+              souhaité et collez-le sur votre site. Les widgets se
+              rafraîchissent automatiquement toutes les 2 minutes et sont liés
+              à votre slug{" "}
+              <span className="chip text-brand-700">
+                <LinkChain size={12} /> {slug}
+              </span>
+              .
+            </p>
+          </div>
+        </div>
       </section>
 
       {WIDGETS.map((widget) => {
@@ -92,21 +106,22 @@ export default async function EmbedsPage() {
         return (
           <section
             key={widget.id}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="surface-card-elevated p-6 sm:p-8"
           >
-            <header className="mb-4">
-              <h3 className="text-base font-semibold text-slate-900">
+            <header className="mb-5">
+              <p className="section-eyebrow">{widget.id}</p>
+              <h3 className="mt-0.5 text-base font-semibold tracking-tight text-slate-900">
                 {widget.title}
               </h3>
-              <p className="mt-1 text-sm text-slate-500">{widget.description}</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {widget.description}
+              </p>
             </header>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-2">
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Aperçu en direct
-                </p>
-                <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                <p className="section-eyebrow mb-2">Aperçu en direct</p>
+                <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
                   <iframe
                     src={path}
                     width={widget.iframeWidth}
@@ -119,9 +134,7 @@ export default async function EmbedsPage() {
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Code à intégrer
-                </p>
+                <p className="section-eyebrow mb-2">Code à intégrer</p>
                 <CopyableSnippet code={snippet} />
                 <p className="mt-2 text-xs text-slate-400">
                   URL directe :{" "}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Holiday } from "@/lib/schedule-types";
+import { CalendarPlus, CalendarRange, Plus, Trash } from "@/components/icons";
 
 type Props = {
   initialHolidays: Holiday[];
@@ -103,49 +104,43 @@ export function HolidaysManager({ initialHolidays }: Props) {
     <div className="space-y-6">
       <form
         onSubmit={onAdd}
-        className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-12"
+        className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-brand-50/50 via-white to-white p-4 sm:grid-cols-12"
       >
         <div className="sm:col-span-4">
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Nom
-          </label>
+          <label className="section-eyebrow">Nom</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ex. Vacances de Noël"
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="field-input mt-1"
           />
         </div>
         <div className="sm:col-span-3">
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Début
-          </label>
+          <label className="section-eyebrow">Début</label>
           <input
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="field-input mt-1"
           />
         </div>
         <div className="sm:col-span-3">
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Fin
-          </label>
+          <label className="section-eyebrow">Fin</label>
           <input
             type="date"
             value={end}
             onChange={(e) => setEnd(e.target.value)}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="field-input mt-1"
           />
         </div>
         <div className="flex items-end sm:col-span-2">
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-300"
+            className="btn-primary w-full"
           >
-            Ajouter
+            <Plus size={14} /> Ajouter
           </button>
         </div>
         {error && (
@@ -154,29 +149,42 @@ export function HolidaysManager({ initialHolidays }: Props) {
       </form>
 
       {holidays.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-          Aucune période de fermeture à venir n&apos;est enregistrée.
-        </p>
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-10 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+            <CalendarPlus size={18} />
+          </span>
+          <p className="text-sm font-medium text-slate-700">
+            Aucune période de fermeture à venir
+          </p>
+          <p className="text-xs text-slate-400">
+            Ajoutez une période ci-dessus pour la voir apparaître ici.
+          </p>
+        </div>
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+        <ul className="space-y-2">
           {holidays.map((h) => (
             <li
               key={h.id}
-              className="flex items-center justify-between gap-4 px-4 py-3"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-soft transition hover:shadow-lift"
             >
-              <div>
-                <p className="font-medium text-slate-800">{h.name}</p>
-                <p className="text-sm text-slate-500">
-                  {formatRange(h.start_date, h.end_date)}
-                </p>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                  <CalendarRange size={16} />
+                </span>
+                <div>
+                  <p className="font-medium text-slate-900">{h.name}</p>
+                  <p className="text-sm text-slate-500">
+                    {formatRange(h.start_date, h.end_date)}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => onDelete(h.id)}
                 disabled={pending}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Supprimer
+                <Trash size={14} /> Supprimer
               </button>
             </li>
           ))}

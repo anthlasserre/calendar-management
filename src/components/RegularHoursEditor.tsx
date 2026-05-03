@@ -11,6 +11,7 @@ import {
   nextOccurrencesOfWeekday,
   type RegularHour,
 } from "@/lib/schedule-types";
+import { Check, Repeat } from "@/components/icons";
 
 type Props = {
   initialHours: RegularHour[];
@@ -134,7 +135,7 @@ export function RegularHoursEditor({ initialHours }: Props) {
 
   return (
     <div>
-      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+      <ul className="space-y-2">
         {orderedRows.map((row) => {
           const upcoming = row.is_open
             ? nextOccurrencesOfWeekday(row.day_of_week, row.frequency_weeks)
@@ -148,26 +149,44 @@ export function RegularHoursEditor({ initialHours }: Props) {
           return (
             <li
               key={row.day_of_week}
-              className="space-y-3 px-4 py-3"
+              className={
+                "rounded-2xl border bg-white px-4 py-3 transition " +
+                (row.is_open
+                  ? "border-slate-200 shadow-soft"
+                  : "border-slate-200/70 bg-slate-50/60")
+              }
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                    checked={row.is_open}
-                    onChange={(e) =>
-                      updateRow(row.day_of_week, { is_open: e.target.checked })
+                <label className="flex cursor-pointer items-center gap-3 select-none">
+                  <span className="relative inline-flex h-5 w-5 items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="peer absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-md border border-slate-300 bg-white shadow-sm transition checked:border-brand-500 checked:bg-gradient-to-br checked:from-brand-500 checked:to-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                      checked={row.is_open}
+                      onChange={(e) =>
+                        updateRow(row.day_of_week, {
+                          is_open: e.target.checked,
+                        })
+                      }
+                    />
+                    <Check
+                      size={12}
+                      className="pointer-events-none relative text-white opacity-0 peer-checked:opacity-100"
+                    />
+                  </span>
+                  <span
+                    className={
+                      "w-24 font-medium tracking-tight " +
+                      (row.is_open ? "text-slate-900" : "text-slate-500")
                     }
-                  />
-                  <span className="w-24 font-medium text-slate-800">
+                  >
                     {DAY_LABELS_FR[row.day_of_week]}
                   </span>
                 </label>
 
                 {row.is_open ? (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <span>de</span>
+                    <span className="text-slate-400">de</span>
                     <input
                       type="time"
                       value={row.open_time}
@@ -176,9 +195,9 @@ export function RegularHoursEditor({ initialHours }: Props) {
                           open_time: e.target.value,
                         })
                       }
-                      className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      className="field-time"
                     />
-                    <span>à</span>
+                    <span className="text-slate-400">à</span>
                     <input
                       type="time"
                       value={row.close_time}
@@ -187,7 +206,7 @@ export function RegularHoursEditor({ initialHours }: Props) {
                           close_time: e.target.value,
                         })
                       }
-                      className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      className="field-time"
                     />
                   </div>
                 ) : (
@@ -196,40 +215,39 @@ export function RegularHoursEditor({ initialHours }: Props) {
               </div>
 
               {row.is_open && (
-                <div className="flex flex-wrap items-center gap-2 pl-7 text-xs text-slate-500">
-                  <label className="flex items-center gap-2">
-                    <span className="uppercase tracking-wide">Récurrence</span>
-                    <select
-                      value={row.frequency_weeks}
-                      onChange={(e) =>
-                        onFrequencyChange(row.day_of_week, Number(e.target.value))
-                      }
-                      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    >
-                      {FREQUENCY_OPTIONS.map((f) => (
-                        <option key={f} value={f}>
-                          {FREQUENCY_LABELS_FR[f]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 pl-8 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 text-brand-600/80">
+                    <Repeat size={12} />
+                    <span className="section-eyebrow">Récurrence</span>
+                  </span>
+                  <select
+                    value={row.frequency_weeks}
+                    onChange={(e) =>
+                      onFrequencyChange(row.day_of_week, Number(e.target.value))
+                    }
+                    className="field-select"
+                  >
+                    {FREQUENCY_OPTIONS.map((f) => (
+                      <option key={f} value={f}>
+                        {FREQUENCY_LABELS_FR[f]}
+                      </option>
+                    ))}
+                  </select>
 
                   {row.frequency_weeks > 1 && (
-                    <label className="flex items-center gap-2">
-                      <span className="uppercase tracking-wide">
+                    <>
+                      <span className="section-eyebrow">
                         Prochaine ouverture
                       </span>
                       <select
-                        value={
-                          selectedNext ? formatYmd(selectedNext) : ""
-                        }
+                        value={selectedNext ? formatYmd(selectedNext) : ""}
                         onChange={(e) =>
                           onNextOccurrenceChange(
                             row.day_of_week,
                             e.target.value,
                           )
                         }
-                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="field-select"
                       >
                         {upcoming.map((d) => (
                           <option key={formatYmd(d)} value={formatYmd(d)}>
@@ -237,7 +255,7 @@ export function RegularHoursEditor({ initialHours }: Props) {
                           </option>
                         ))}
                       </select>
-                    </label>
+                    </>
                   )}
                 </div>
               )}
@@ -246,25 +264,24 @@ export function RegularHoursEditor({ initialHours }: Props) {
         })}
       </ul>
 
-      <div className="mt-6 flex items-center justify-between gap-4">
-        {feedback ? (
-          <p
-            className={
-              feedback.type === "success"
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <p
+          className={
+            feedback
+              ? feedback.type === "success"
                 ? "text-sm text-emerald-600"
                 : "text-sm text-red-600"
-            }
-          >
-            {feedback.message}
-          </p>
-        ) : (
-          <span />
-        )}
+              : "text-xs text-slate-400"
+          }
+        >
+          {feedback?.message ??
+            "Les changements ne sont enregistrés qu'au clic sur le bouton."}
+        </p>
         <button
           type="button"
           onClick={onSave}
           disabled={pending}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-300"
+          className="btn-primary"
         >
           {pending ? "Enregistrement…" : "Enregistrer les horaires"}
         </button>
