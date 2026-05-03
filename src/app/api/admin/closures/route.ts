@@ -8,9 +8,9 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const includePast = searchParams.get("inclure_passees") === "true";
-  const holidays = await getHolidays(includePast);
-  return NextResponse.json({ holidays });
+  const includePast = searchParams.get("include_past") === "true";
+  const closures = await getHolidays(includePast);
+  return NextResponse.json({ closures });
 }
 
 export async function POST(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     payload = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Corps de requête JSON invalide." },
+      { error: "Invalid JSON body." },
       { status: 400 },
     );
   }
@@ -31,19 +31,19 @@ export async function POST(request: Request) {
 
   if (!name) {
     return NextResponse.json(
-      { error: "Le nom est requis." },
+      { error: "name is required." },
       { status: 400 },
     );
   }
   if (!DATE_REGEX.test(startDate) || !DATE_REGEX.test(endDate)) {
     return NextResponse.json(
-      { error: "Les dates doivent être au format AAAA-MM-JJ." },
+      { error: "start_date and end_date must use the YYYY-MM-DD format." },
       { status: 400 },
     );
   }
   if (startDate > endDate) {
     return NextResponse.json(
-      { error: "La date de fin doit être postérieure ou égale à la date de début." },
+      { error: "end_date must be on or after start_date." },
       { status: 400 },
     );
   }

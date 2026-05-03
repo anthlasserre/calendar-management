@@ -4,6 +4,10 @@ Application Next.js 16 + Tailwind (en français) permettant à un manager de
 configurer les horaires d'ouverture habituels du bureau et les périodes de
 fermeture exceptionnelles, avec une API publique pour exposer ces informations.
 
+## Aperçu
+
+![Interface manager](docs/screenshots/manager-home.png)
+
 ## Stack
 
 - **Next.js 16** (App Router, Route Handlers)
@@ -49,7 +53,7 @@ Voir [`src/lib/schema.sql`](src/lib/schema.sql).
 
 Toutes les réponses sont en JSON et autorisent CORS (`*`).
 
-### `GET /api/horaires`
+### `GET /api/schedule`
 
 Retourne les horaires hebdomadaires et les fermetures à venir.
 
@@ -59,7 +63,7 @@ Retourne les horaires hebdomadaires et les fermetures à venir.
   "regular_hours": [
     {
       "day_of_week": 1,
-      "day_label": "Lundi",
+      "day_label": "Monday",
       "is_open": true,
       "open_time": "09:00",
       "close_time": "18:00"
@@ -68,7 +72,7 @@ Retourne les horaires hebdomadaires et les fermetures à venir.
   "upcoming_closures": [
     {
       "id": 3,
-      "name": "Vacances de Noël",
+      "name": "Christmas break",
       "start_date": "2026-12-22",
       "end_date": "2027-01-02"
     }
@@ -76,7 +80,7 @@ Retourne les horaires hebdomadaires et les fermetures à venir.
 }
 ```
 
-### `GET /api/statut`
+### `GET /api/status`
 
 Indique si le bureau est ouvert à l'instant donné.
 
@@ -99,10 +103,19 @@ Paramètres :
 Une page dédiée `/embeds` présente les widgets disponibles avec un aperçu en
 direct et un extrait `<iframe>` à copier.
 
+![Page d'intégration des widgets](docs/screenshots/embeds-page.png)
+
 | Route                       | Contenu                                                                |
 | --------------------------- | ---------------------------------------------------------------------- |
 | `/embed/badge`              | Badge compact Ouvert / Fermé avec heure de fermeture ou motif.         |
 | `/embed/badge-holidays`     | Badge + période de fermeture en cours ou à venir dans 15 jours max.    |
+
+Aperçus des widgets :
+
+| Ouvert | Fermé |
+| ------ | ----- |
+| ![Badge ouvert](docs/screenshots/widget-badge-open.png) | ![Badge fermé](docs/screenshots/widget-badge.png) |
+| ![Badge + fermeture (ouvert)](docs/screenshots/widget-badge-holidays-open.png) | ![Badge + fermeture (fermé)](docs/screenshots/widget-badge-holidays.png) |
 
 Les widgets se rafraîchissent automatiquement toutes les 2 minutes côté client
 et autorisent l'embed depuis n'importe quel domaine
@@ -125,14 +138,28 @@ Exemple d'intégration :
 
 Utilisée par l'interface de gestion.
 
-| Méthode | Route                              | Description                                        |
-| ------- | ---------------------------------- | -------------------------------------------------- |
-| `GET`   | `/api/admin/horaires-reguliers`    | Liste des 7 jours.                                 |
-| `PUT`   | `/api/admin/horaires-reguliers`    | Met à jour les 7 jours en bloc.                    |
-| `GET`   | `/api/admin/fermetures`            | Liste des fermetures (`?inclure_passees=true`).    |
-| `POST`  | `/api/admin/fermetures`            | Crée une période de fermeture.                     |
-| `DELETE`| `/api/admin/fermetures/:id`        | Supprime une période.                              |
+| Méthode | Route                          | Description                                       |
+| ------- | ------------------------------ | ------------------------------------------------- |
+| `GET`   | `/api/admin/regular-hours`     | Liste des 7 jours.                                |
+| `PUT`   | `/api/admin/regular-hours`     | Met à jour les 7 jours en bloc.                   |
+| `GET`   | `/api/admin/closures`          | Liste des fermetures (`?include_past=true`).      |
+| `POST`  | `/api/admin/closures`          | Crée une période de fermeture.                    |
+| `DELETE`| `/api/admin/closures/:id`      | Supprime une période.                             |
 
 > Aucune authentification n'est en place. Pour un déploiement en production,
 > ajoutez un reverse proxy ou un middleware de protection devant les routes
 > `/api/admin/*` et la page `/`.
+
+## Régénérer les captures d'écran
+
+Les captures du dossier `docs/screenshots/` sont produites par un script
+Playwright. Lancez le serveur en mode production puis exécutez le script :
+
+```bash
+npm run build && npm start &
+npm run screenshots
+```
+
+Variables d'environnement utiles : `SCREENSHOT_BASE_URL` (défaut
+`http://localhost:3000`) et `CHROMIUM_PATH` (chemin vers un binaire Chromium
+si vous ne souhaitez pas utiliser celui géré par Playwright).

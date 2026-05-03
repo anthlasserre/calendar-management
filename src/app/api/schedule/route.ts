@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  DAY_LABELS_FR,
+  DAY_LABELS_EN,
   getHolidays,
   getRegularHours,
 } from "@/lib/schedule";
@@ -18,14 +18,14 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  const [hours, holidays] = await Promise.all([
+  const [hours, closures] = await Promise.all([
     getRegularHours(),
     getHolidays(false),
   ]);
 
   const regular = hours.map((h) => ({
     day_of_week: h.day_of_week,
-    day_label: DAY_LABELS_FR[h.day_of_week],
+    day_label: DAY_LABELS_EN[h.day_of_week],
     is_open: h.is_open,
     open_time: h.open_time,
     close_time: h.close_time,
@@ -35,7 +35,7 @@ export async function GET() {
     {
       timezone: process.env.TZ ?? "Europe/Paris",
       regular_hours: regular,
-      upcoming_closures: holidays,
+      upcoming_closures: closures,
     },
     {
       headers: {

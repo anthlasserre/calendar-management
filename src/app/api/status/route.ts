@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Le paramètre date est invalide. Utilisez un format ISO 8601, par exemple 2026-05-03T14:30.",
+            "Invalid date parameter. Use an ISO 8601 value, e.g. 2026-05-03T14:30.",
         },
         { status: 400, headers: CORS_HEADERS },
       );

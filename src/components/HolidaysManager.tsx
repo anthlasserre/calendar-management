@@ -55,7 +55,7 @@ export function HolidaysManager({ initialHolidays }: Props) {
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/fermetures", {
+        const res = await fetch("/api/admin/closures", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -85,7 +85,7 @@ export function HolidaysManager({ initialHolidays }: Props) {
   const onDelete = (id: number) => {
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/admin/fermetures/${id}`, {
+        const res = await fetch(`/api/admin/closures/${id}`, {
           method: "DELETE",
         });
         if (!res.ok) {

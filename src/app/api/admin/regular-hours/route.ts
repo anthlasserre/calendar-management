@@ -24,14 +24,14 @@ export async function PUT(request: Request) {
     payload = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Corps de requête JSON invalide." },
+      { error: "Invalid JSON body." },
       { status: 400 },
     );
   }
 
   if (!Array.isArray(payload.hours) || payload.hours.length !== 7) {
     return NextResponse.json(
-      { error: "Le tableau hours doit contenir exactement 7 entrées." },
+      { error: "hours must contain exactly 7 entries." },
       { status: 400 },
     );
   }
@@ -42,7 +42,7 @@ export async function PUT(request: Request) {
   for (const raw of payload.hours as unknown[]) {
     if (!raw || typeof raw !== "object") {
       return NextResponse.json(
-        { error: "Entrée d'horaire invalide." },
+        { error: "Invalid schedule entry." },
         { status: 400 },
       );
     }
@@ -59,13 +59,13 @@ export async function PUT(request: Request) {
       day > 6
     ) {
       return NextResponse.json(
-        { error: "day_of_week doit être un entier entre 0 et 6." },
+        { error: "day_of_week must be an integer between 0 and 6." },
         { status: 400 },
       );
     }
     if (seen.has(day)) {
       return NextResponse.json(
-        { error: "Doublon détecté dans les jours." },
+        { error: "Duplicate day_of_week value." },
         { status: 400 },
       );
     }
@@ -73,7 +73,7 @@ export async function PUT(request: Request) {
 
     if (typeof isOpen !== "boolean") {
       return NextResponse.json(
-        { error: "is_open doit être un booléen." },
+        { error: "is_open must be a boolean." },
         { status: 400 },
       );
     }
@@ -88,7 +88,7 @@ export async function PUT(request: Request) {
         return NextResponse.json(
           {
             error:
-              "open_time et close_time doivent être au format HH:MM lorsque le jour est ouvert.",
+              "open_time and close_time must use the HH:MM format when the day is open.",
           },
           { status: 400 },
         );
@@ -96,8 +96,7 @@ export async function PUT(request: Request) {
       if (openTime >= closeTime) {
         return NextResponse.json(
           {
-            error:
-              "L'heure de fermeture doit être strictement après l'heure d'ouverture.",
+            error: "close_time must be strictly after open_time.",
           },
           { status: 400 },
         );

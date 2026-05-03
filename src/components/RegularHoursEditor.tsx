@@ -62,7 +62,7 @@ export function RegularHoursEditor({ initialHours }: Props) {
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/horaires-reguliers", {
+        const res = await fetch("/api/admin/regular-hours", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -5,6 +5,7 @@ import {
 } from "./schedule-types";
 
 export {
+  DAY_LABELS_EN,
   DAY_LABELS_FR,
   DAY_ORDER_FR,
   type Holiday,

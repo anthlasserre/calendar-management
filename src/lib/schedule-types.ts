@@ -22,4 +22,14 @@ export const DAY_LABELS_FR = [
   "Samedi",
 ] as const;
 
+export const DAY_LABELS_EN = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 export const DAY_ORDER_FR: number[] = [1, 2, 3, 4, 5, 6, 0];
