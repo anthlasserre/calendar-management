@@ -40,13 +40,13 @@ Voir [`src/lib/schema.sql`](src/lib/schema.sql).
 
 | Table          | Rôle                                                    |
 | -------------- | ------------------------------------------------------- |
-| `regular_hours`| Une ligne par jour de la semaine (0 = dimanche … 6 = samedi). |
+| `regular_hours`| Une ligne par jour de la semaine (0 = dimanche … 6 = samedi). Inclut une récurrence (`frequency_weeks` ∈ 1–4) et un décalage de cycle (`week_offset`). |
 | `holidays`     | Périodes de fermeture (vacances, jours fériés, etc.).   |
 
 ## Interface manager
 
 - **Statut courant** : indique si le bureau est ouvert maintenant.
-- **Horaires habituels** : case à cocher par jour + heures d'ouverture/fermeture.
+- **Horaires habituels** : case à cocher par jour + heures d'ouverture/fermeture, plus une récurrence (toutes les semaines, une semaine sur 2/3/4) avec sélection de la prochaine occurrence ouverte.
 - **Périodes de fermeture** : ajout / suppression de périodes datées.
 
 ## API publique
@@ -66,7 +66,20 @@ Retourne les horaires hebdomadaires et les fermetures à venir.
       "day_label": "Monday",
       "is_open": true,
       "open_time": "09:00",
-      "close_time": "18:00"
+      "close_time": "18:00",
+      "frequency_weeks": 1,
+      "week_offset": 0,
+      "next_occurrence": null
+    },
+    {
+      "day_of_week": 5,
+      "day_label": "Friday",
+      "is_open": true,
+      "open_time": "09:00",
+      "close_time": "18:00",
+      "frequency_weeks": 2,
+      "week_offset": 1,
+      "next_occurrence": "2026-05-15"
     }
   ],
   "upcoming_closures": [
@@ -79,6 +92,12 @@ Retourne les horaires hebdomadaires et les fermetures à venir.
   ]
 }
 ```
+
+`frequency_weeks` is the cycle length (1–4) and `week_offset` is the index of
+the open week within that cycle, computed against a fixed Monday epoch
+(`2000-01-03`). For weekly schedules `frequency_weeks` is 1 and
+`next_occurrence` is `null`; for cycles longer than a week, `next_occurrence`
+points to the next concrete date the office will be open on that weekday.
 
 ### `GET /api/status`
 

@@ -1,5 +1,8 @@
 import { query } from "./db";
 import {
+  dateMatchesFrequency,
+  formatYmd,
+  nextMatchingDate,
   type Holiday,
   type RegularHour,
 } from "./schedule-types";
@@ -8,6 +11,12 @@ export {
   DAY_LABELS_EN,
   DAY_LABELS_FR,
   DAY_ORDER_FR,
+  FREQUENCY_LABELS_FR,
+  computeWeekOffsetForDate,
+  dateMatchesFrequency,
+  formatYmd,
+  nextMatchingDate,
+  nextOccurrencesOfWeekday,
   type Holiday,
   type RegularHour,
 } from "./schedule-types";
@@ -16,7 +25,8 @@ export async function getRegularHours(): Promise<RegularHour[]> {
   const result = await query<RegularHour>(
     `SELECT day_of_week, is_open,
             to_char(open_time, 'HH24:MI') AS open_time,
-            to_char(close_time, 'HH24:MI') AS close_time
+            to_char(close_time, 'HH24:MI') AS close_time,
+            frequency_weeks, week_offset
        FROM regular_hours
        ORDER BY day_of_week`,
   );
@@ -41,13 +51,6 @@ export async function getHolidays(includePast = false): Promise<Holiday[]> {
   return result.rows;
 }
 
-function formatYmd(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 export type OpenStatus =
   | { open: true; closes_at: string; reason: "regular" }
   | {
@@ -56,6 +59,46 @@ export type OpenStatus =
       holiday?: { id: number; name: string; end_date: string };
       next_opening?: { date: string; open_time: string };
     };
+
+async function findNextOpening(
+  reference: Date,
+): Promise<{ date: string; open_time: string } | null> {
+  const hours = await getRegularHours();
+
+  for (let i = 0; i <= 28; i++) {
+    const candidate = new Date(
+      reference.getFullYear(),
+      reference.getMonth(),
+      reference.getDate() + i,
+    );
+    const dow = candidate.getDay();
+    const row = hours.find((h) => h.day_of_week === dow);
+    if (!row || !row.is_open || !row.open_time || !row.close_time) continue;
+    if (!dateMatchesFrequency(candidate, row.frequency_weeks, row.week_offset)) {
+      continue;
+    }
+
+    if (i === 0) {
+      const hhmm = `${String(reference.getHours()).padStart(2, "0")}:${String(
+        reference.getMinutes(),
+      ).padStart(2, "0")}`;
+      if (hhmm >= row.open_time) continue;
+    }
+
+    const ymd = formatYmd(candidate);
+    const holidayHit = await query<{ id: number }>(
+      `SELECT id FROM holidays
+        WHERE $1::date BETWEEN start_date AND end_date
+        LIMIT 1`,
+      [ymd],
+    );
+    if (holidayHit.rows.length > 0) continue;
+
+    return { date: formatYmd(candidate), open_time: row.open_time };
+  }
+
+  return null;
+}
 
 export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
   const ymd = formatYmd(date);
@@ -75,6 +118,13 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
 
   if (holidayResult.rows[0]) {
     const holiday = holidayResult.rows[0];
+    const next = await findNextOpening(
+      new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate() + 1,
+      ),
+    );
     return {
       open: false,
       reason: "holiday",
@@ -83,26 +133,37 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
         name: holiday.name,
         end_date: holiday.end_date,
       },
+      ...(next ? { next_opening: next } : {}),
     };
   }
 
   const regularResult = await query<RegularHour>(
     `SELECT day_of_week, is_open,
             to_char(open_time, 'HH24:MI') AS open_time,
-            to_char(close_time, 'HH24:MI') AS close_time
+            to_char(close_time, 'HH24:MI') AS close_time,
+            frequency_weeks, week_offset
        FROM regular_hours
       WHERE day_of_week = $1`,
     [dow],
   );
 
   const today = regularResult.rows[0];
-  if (today?.is_open && today.open_time && today.close_time) {
+  const cycleMatches = today
+    ? dateMatchesFrequency(date, today.frequency_weeks, today.week_offset)
+    : false;
+
+  if (today?.is_open && today.open_time && today.close_time && cycleMatches) {
     if (hhmm >= today.open_time && hhmm < today.close_time) {
       return { open: true, closes_at: today.close_time, reason: "regular" };
     }
   }
 
-  return { open: false, reason: "regular" };
+  const next = await findNextOpening(date);
+  return {
+    open: false,
+    reason: "regular",
+    ...(next ? { next_opening: next } : {}),
+  };
 }
 
 export async function getCurrentOrUpcomingHoliday(
@@ -123,4 +184,3 @@ export async function getCurrentOrUpcomingHoliday(
   );
   return result.rows[0] ?? null;
 }
-

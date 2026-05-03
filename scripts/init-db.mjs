@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -5,34 +6,7 @@ import pg from "pg";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function loadEnv() {
-  try {
-    const envFile = await readFile(resolve(__dirname, "..", ".env"), "utf8");
-    for (const rawLine of envFile.split("\n")) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith("#")) continue;
-      const eq = line.indexOf("=");
-      if (eq === -1) continue;
-      const key = line.slice(0, eq).trim();
-      let value = line.slice(eq + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      if (!(key in process.env)) {
-        process.env[key] = value;
-      }
-    }
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-}
-
 async function main() {
-  await loadEnv();
-
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     console.error(

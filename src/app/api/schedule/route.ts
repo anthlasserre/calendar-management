@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import {
   DAY_LABELS_EN,
+  formatYmd,
   getHolidays,
   getRegularHours,
+  nextMatchingDate,
 } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +25,29 @@ export async function GET() {
     getHolidays(false),
   ]);
 
-  const regular = hours.map((h) => ({
-    day_of_week: h.day_of_week,
-    day_label: DAY_LABELS_EN[h.day_of_week],
-    is_open: h.is_open,
-    open_time: h.open_time,
-    close_time: h.close_time,
-  }));
+  const now = new Date();
+
+  const regular = hours.map((h) => {
+    const next =
+      h.is_open && h.frequency_weeks > 1
+        ? nextMatchingDate(
+            h.day_of_week,
+            h.frequency_weeks,
+            h.week_offset,
+            now,
+          )
+        : null;
+    return {
+      day_of_week: h.day_of_week,
+      day_label: DAY_LABELS_EN[h.day_of_week],
+      is_open: h.is_open,
+      open_time: h.open_time,
+      close_time: h.close_time,
+      frequency_weeks: h.frequency_weeks,
+      week_offset: h.week_offset,
+      next_occurrence: next ? formatYmd(next) : null,
+    };
+  });
 
   return NextResponse.json(
     {

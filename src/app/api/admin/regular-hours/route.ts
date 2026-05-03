@@ -5,12 +5,15 @@ import { getRegularHours } from "@/lib/schedule";
 export const dynamic = "force-dynamic";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_FREQUENCY_WEEKS = 4;
 
 type IncomingHour = {
   day_of_week: number;
   is_open: boolean;
   open_time: string | null;
   close_time: string | null;
+  frequency_weeks: number;
+  week_offset: number;
 };
 
 export async function GET() {
@@ -51,6 +54,8 @@ export async function PUT(request: Request) {
     const isOpen = entry.is_open;
     const openTime = entry.open_time;
     const closeTime = entry.close_time;
+    const frequency = entry.frequency_weeks ?? 1;
+    const offset = entry.week_offset ?? 0;
 
     if (
       typeof day !== "number" ||
@@ -74,6 +79,31 @@ export async function PUT(request: Request) {
     if (typeof isOpen !== "boolean") {
       return NextResponse.json(
         { error: "is_open must be a boolean." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      typeof frequency !== "number" ||
+      !Number.isInteger(frequency) ||
+      frequency < 1 ||
+      frequency > MAX_FREQUENCY_WEEKS
+    ) {
+      return NextResponse.json(
+        {
+          error: `frequency_weeks must be an integer between 1 and ${MAX_FREQUENCY_WEEKS}.`,
+        },
+        { status: 400 },
+      );
+    }
+    if (
+      typeof offset !== "number" ||
+      !Number.isInteger(offset) ||
+      offset < 0 ||
+      offset >= frequency
+    ) {
+      return NextResponse.json(
+        { error: "week_offset must be an integer in [0, frequency_weeks)." },
         { status: 400 },
       );
     }
@@ -106,6 +136,8 @@ export async function PUT(request: Request) {
         is_open: true,
         open_time: openTime,
         close_time: closeTime,
+        frequency_weeks: frequency,
+        week_offset: offset,
       });
     } else {
       cleaned.push({
@@ -113,6 +145,8 @@ export async function PUT(request: Request) {
         is_open: false,
         open_time: null,
         close_time: null,
+        frequency_weeks: 1,
+        week_offset: 0,
       });
     }
   }
@@ -126,9 +160,18 @@ export async function PUT(request: Request) {
             SET is_open = $2,
                 open_time = $3,
                 close_time = $4,
+                frequency_weeks = $5,
+                week_offset = $6,
                 updated_at = NOW()
           WHERE day_of_week = $1`,
-        [h.day_of_week, h.is_open, h.open_time, h.close_time],
+        [
+          h.day_of_week,
+          h.is_open,
+          h.open_time,
+          h.close_time,
+          h.frequency_weeks,
+          h.week_offset,
+        ],
       );
     }
     await client.query("COMMIT");
