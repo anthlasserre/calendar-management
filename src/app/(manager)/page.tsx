@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { getHolidays, getRegularHours } from "@/lib/schedule";
 import { RegularHoursEditor } from "@/components/RegularHoursEditor";
 import { HolidaysManager } from "@/components/HolidaysManager";
@@ -6,14 +8,20 @@ import { CurrentStatus } from "@/components/CurrentStatus";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const session = await auth();
+  const companyId = session?.user?.companyId;
+  if (!companyId) {
+    redirect("/sign-in");
+  }
+
   const [regularHours, holidays] = await Promise.all([
-    getRegularHours(),
-    getHolidays(false),
+    getRegularHours(companyId),
+    getHolidays(companyId, false),
   ]);
 
   return (
     <main className="space-y-10">
-      <CurrentStatus />
+      <CurrentStatus companyId={companyId} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <header className="mb-6 flex items-start justify-between gap-4">

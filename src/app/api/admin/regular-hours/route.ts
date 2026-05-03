@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { getRegularHours } from "@/lib/schedule";
+import { requireApiCompany } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,17 @@ type IncomingHour = {
 };
 
 export async function GET() {
-  const hours = await getRegularHours();
+  const auth = await requireApiCompany();
+  if (!auth.ok) return auth.response;
+  const hours = await getRegularHours(auth.companyId);
   return NextResponse.json({ hours });
 }
 
 export async function PUT(request: Request) {
+  const auth = await requireApiCompany();
+  if (!auth.ok) return auth.response;
+  const companyId = auth.companyId;
+
   let payload: { hours?: unknown };
   try {
     payload = await request.json();
@@ -125,9 +132,7 @@ export async function PUT(request: Request) {
       }
       if (openTime >= closeTime) {
         return NextResponse.json(
-          {
-            error: "close_time must be strictly after open_time.",
-          },
+          { error: "close_time must be strictly after open_time." },
           { status: 400 },
         );
       }
@@ -156,15 +161,18 @@ export async function PUT(request: Request) {
     await client.query("BEGIN");
     for (const h of cleaned) {
       await client.query(
-        `UPDATE regular_hours
-            SET is_open = $2,
-                open_time = $3,
-                close_time = $4,
-                frequency_weeks = $5,
-                week_offset = $6,
-                updated_at = NOW()
-          WHERE day_of_week = $1`,
+        `INSERT INTO regular_hours
+            (company_id, day_of_week, is_open, open_time, close_time, frequency_weeks, week_offset)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (company_id, day_of_week) DO UPDATE
+            SET is_open = EXCLUDED.is_open,
+                open_time = EXCLUDED.open_time,
+                close_time = EXCLUDED.close_time,
+                frequency_weeks = EXCLUDED.frequency_weeks,
+                week_offset = EXCLUDED.week_offset,
+                updated_at = NOW()`,
         [
+          companyId,
           h.day_of_week,
           h.is_open,
           h.open_time,
@@ -182,6 +190,6 @@ export async function PUT(request: Request) {
     client.release();
   }
 
-  const hours = await getRegularHours();
+  const hours = await getRegularHours(companyId);
   return NextResponse.json({ hours });
 }

@@ -6,6 +6,7 @@ import {
   getRegularHours,
   nextMatchingDate,
 } from "@/lib/schedule";
+import { getCompanyBySlug } from "@/lib/companies";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +20,25 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export async function GET() {
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await context.params;
+  const company = await getCompanyBySlug(slug);
+  if (!company) {
+    return NextResponse.json(
+      { error: "Unknown company." },
+      { status: 404, headers: CORS_HEADERS },
+    );
+  }
+
   const [hours, closures] = await Promise.all([
-    getRegularHours(),
-    getHolidays(false),
+    getRegularHours(company.id),
+    getHolidays(company.id, false),
   ]);
 
   const now = new Date();
-
   const regular = hours.map((h) => {
     const next =
       h.is_open && h.frequency_weeks > 1
@@ -51,7 +63,8 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      timezone: process.env.TZ ?? "Europe/Paris",
+      company: { slug: company.slug, name: company.name },
+      timezone: company.timezone,
       regular_hours: regular,
       upcoming_closures: closures,
     },

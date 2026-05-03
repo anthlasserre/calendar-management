@@ -3,7 +3,7 @@ export const metadata = {
   robots: { index: false },
 };
 
-export default function EmbedLayout({
+export default function CompanyEmbedLayout({
   children,
 }: {
   children: React.ReactNode;

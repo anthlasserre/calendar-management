@@ -1,8 +1,8 @@
 import { computeStatusForDate } from "@/lib/schedule";
 
-export async function CurrentStatus() {
+export async function CurrentStatus({ companyId }: { companyId: number }) {
   const now = new Date();
-  const status = await computeStatusForDate(now);
+  const status = await computeStatusForDate(companyId, now);
 
   const formatter = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",

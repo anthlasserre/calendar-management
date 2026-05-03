@@ -2,7 +2,6 @@ import { query } from "./db";
 import {
   dateMatchesFrequency,
   formatYmd,
-  nextMatchingDate,
   type Holiday,
   type RegularHour,
 } from "./schedule-types";
@@ -21,32 +20,42 @@ export {
   type RegularHour,
 } from "./schedule-types";
 
-export async function getRegularHours(): Promise<RegularHour[]> {
+export async function getRegularHours(
+  companyId: number,
+): Promise<RegularHour[]> {
   const result = await query<RegularHour>(
     `SELECT day_of_week, is_open,
             to_char(open_time, 'HH24:MI') AS open_time,
             to_char(close_time, 'HH24:MI') AS close_time,
             frequency_weeks, week_offset
        FROM regular_hours
-       ORDER BY day_of_week`,
+      WHERE company_id = $1
+      ORDER BY day_of_week`,
+    [companyId],
   );
   return result.rows;
 }
 
-export async function getHolidays(includePast = false): Promise<Holiday[]> {
+export async function getHolidays(
+  companyId: number,
+  includePast = false,
+): Promise<Holiday[]> {
   const result = await query<Holiday>(
     includePast
       ? `SELECT id, name,
                 to_char(start_date, 'YYYY-MM-DD') AS start_date,
                 to_char(end_date, 'YYYY-MM-DD') AS end_date
            FROM holidays
+          WHERE company_id = $1
            ORDER BY start_date DESC`
       : `SELECT id, name,
                 to_char(start_date, 'YYYY-MM-DD') AS start_date,
                 to_char(end_date, 'YYYY-MM-DD') AS end_date
            FROM holidays
-           WHERE end_date >= CURRENT_DATE
+          WHERE company_id = $1
+            AND end_date >= CURRENT_DATE
            ORDER BY start_date ASC`,
+    [companyId],
   );
   return result.rows;
 }
@@ -61,9 +70,10 @@ export type OpenStatus =
     };
 
 async function findNextOpening(
+  companyId: number,
   reference: Date,
 ): Promise<{ date: string; open_time: string } | null> {
-  const hours = await getRegularHours();
+  const hours = await getRegularHours(companyId);
 
   for (let i = 0; i <= 28; i++) {
     const candidate = new Date(
@@ -88,9 +98,10 @@ async function findNextOpening(
     const ymd = formatYmd(candidate);
     const holidayHit = await query<{ id: number }>(
       `SELECT id FROM holidays
-        WHERE $1::date BETWEEN start_date AND end_date
+        WHERE company_id = $1
+          AND $2::date BETWEEN start_date AND end_date
         LIMIT 1`,
-      [ymd],
+      [companyId, ymd],
     );
     if (holidayHit.rows.length > 0) continue;
 
@@ -100,7 +111,10 @@ async function findNextOpening(
   return null;
 }
 
-export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
+export async function computeStatusForDate(
+  companyId: number,
+  date: Date,
+): Promise<OpenStatus> {
   const ymd = formatYmd(date);
   const dow = date.getDay();
   const hhmm = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
@@ -110,20 +124,18 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
             to_char(start_date, 'YYYY-MM-DD') AS start_date,
             to_char(end_date, 'YYYY-MM-DD') AS end_date
        FROM holidays
-      WHERE $1::date BETWEEN start_date AND end_date
+      WHERE company_id = $1
+        AND $2::date BETWEEN start_date AND end_date
       ORDER BY start_date ASC
       LIMIT 1`,
-    [ymd],
+    [companyId, ymd],
   );
 
   if (holidayResult.rows[0]) {
     const holiday = holidayResult.rows[0];
     const next = await findNextOpening(
-      new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate() + 1,
-      ),
+      companyId,
+      new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1),
     );
     return {
       open: false,
@@ -143,8 +155,8 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
             to_char(close_time, 'HH24:MI') AS close_time,
             frequency_weeks, week_offset
        FROM regular_hours
-      WHERE day_of_week = $1`,
-    [dow],
+      WHERE company_id = $1 AND day_of_week = $2`,
+    [companyId, dow],
   );
 
   const today = regularResult.rows[0];
@@ -158,7 +170,7 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
     }
   }
 
-  const next = await findNextOpening(date);
+  const next = await findNextOpening(companyId, date);
   return {
     open: false,
     reason: "regular",
@@ -167,6 +179,7 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
 }
 
 export async function getCurrentOrUpcomingHoliday(
+  companyId: number,
   withinDays = 15,
   reference: Date = new Date(),
 ): Promise<Holiday | null> {
@@ -176,11 +189,12 @@ export async function getCurrentOrUpcomingHoliday(
             to_char(start_date, 'YYYY-MM-DD') AS start_date,
             to_char(end_date, 'YYYY-MM-DD') AS end_date
        FROM holidays
-      WHERE end_date >= $1::date
-        AND start_date <= $1::date + ($2::int || ' days')::interval
+      WHERE company_id = $1
+        AND end_date >= $2::date
+        AND start_date <= $2::date + ($3::int || ' days')::interval
       ORDER BY start_date ASC
       LIMIT 1`,
-    [ymd, withinDays],
+    [companyId, ymd, withinDays],
   );
   return result.rows[0] ?? null;
 }

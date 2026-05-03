@@ -1,8 +1,10 @@
+import { notFound } from "next/navigation";
 import {
   computeStatusForDate,
   getCurrentOrUpcomingHoliday,
   type Holiday,
 } from "@/lib/schedule";
+import { getCompanyBySlug } from "@/lib/companies";
 import { StatusBadge } from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +41,18 @@ function buildHolidayLine(holiday: Holiday, today: Date): string {
   return `Prochaine fermeture : ${holiday.name} (${range})`;
 }
 
-export default async function EmbedBadgeHolidaysPage() {
+export default async function EmbedBadgeHolidaysPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const company = await getCompanyBySlug(slug);
+  if (!company) notFound();
   const now = new Date();
   const [status, holiday] = await Promise.all([
-    computeStatusForDate(now),
-    getCurrentOrUpcomingHoliday(15, now),
+    computeStatusForDate(company.id, now),
+    getCurrentOrUpcomingHoliday(company.id, 15, now),
   ]);
 
   return (
