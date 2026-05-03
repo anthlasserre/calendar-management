@@ -94,6 +94,33 @@ Paramètres :
 }
 ```
 
+## Widgets à intégrer
+
+Une page dédiée `/embeds` présente les widgets disponibles avec un aperçu en
+direct et un extrait `<iframe>` à copier.
+
+| Route                       | Contenu                                                                |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `/embed/badge`              | Badge compact Ouvert / Fermé avec heure de fermeture ou motif.         |
+| `/embed/badge-holidays`     | Badge + période de fermeture en cours ou à venir dans 15 jours max.    |
+
+Les widgets se rafraîchissent automatiquement toutes les 2 minutes côté client
+et autorisent l'embed depuis n'importe quel domaine
+(`Content-Security-Policy: frame-ancestors *`).
+
+Exemple d'intégration :
+
+```html
+<iframe
+  src="https://votre-domaine.example/embed/badge"
+  width="360"
+  height="56"
+  loading="lazy"
+  style="border:0;background:transparent"
+  title="Horaires du bureau">
+</iframe>
+```
+
 ## API d'administration (interne)
 
 Utilisée par l'interface de gestion.

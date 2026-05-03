@@ -103,3 +103,23 @@ export async function computeStatusForDate(date: Date): Promise<OpenStatus> {
 
   return { open: false, reason: "regular" };
 }
+
+export async function getCurrentOrUpcomingHoliday(
+  withinDays = 15,
+  reference: Date = new Date(),
+): Promise<Holiday | null> {
+  const ymd = formatYmd(reference);
+  const result = await query<Holiday>(
+    `SELECT id, name,
+            to_char(start_date, 'YYYY-MM-DD') AS start_date,
+            to_char(end_date, 'YYYY-MM-DD') AS end_date
+       FROM holidays
+      WHERE end_date >= $1::date
+        AND start_date <= $1::date + ($2::int || ' days')::interval
+      ORDER BY start_date ASC
+      LIMIT 1`,
+    [ymd, withinDays],
+  );
+  return result.rows[0] ?? null;
+}
+
