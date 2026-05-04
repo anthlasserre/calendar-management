@@ -92,3 +92,24 @@ CREATE TABLE IF NOT EXISTS holidays (
 );
 
 CREATE INDEX IF NOT EXISTS holidays_dates_idx ON holidays (company_id, start_date, end_date);
+
+-- ============================================================================
+-- Invitations : un membre peut inviter une nouvelle adresse e-mail à
+-- rejoindre l'entreprise. Lien à usage unique, expiration à 7 jours.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS company_invitations (
+  id SERIAL PRIMARY KEY,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS company_invitations_pending_unique
+  ON company_invitations (company_id, lower(email))
+  WHERE accepted_at IS NULL;
+CREATE INDEX IF NOT EXISTS company_invitations_email_idx
+  ON company_invitations (lower(email))
+  WHERE accepted_at IS NULL;
