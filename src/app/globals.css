@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: #f6f7fb;
+  color: #0f172a;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  background-image:
+    radial-gradient(60% 50% at 0% 0%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(50% 40% at 100% 0%, rgba(168, 85, 247, 0.10), transparent 60%),
+    radial-gradient(circle at 1px 1px, rgba(99, 102, 241, 0.06) 1px, transparent 0);
+  background-size: auto, auto, 20px 20px;
+  background-attachment: fixed;
+  background-repeat: no-repeat, no-repeat, repeat;
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white/90 shadow-soft backdrop-blur-sm;
+  }
+  .surface-card-elevated {
+    @apply surface-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .field-time {
+    @apply rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums text-slate-800 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .field-select {
+    @apply appearance-none rounded-lg border border-slate-300 bg-white bg-[length:14px_14px] bg-[right_0.5rem_center] bg-no-repeat py-1.5 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 011.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2 text-sm font-medium text-white shadow-[0_8px_24px_-12px_rgba(79,70,229,0.5)] transition hover:from-brand-600 hover:to-brand-700 hover:shadow-[0_10px_28px_-12px_rgba(79,70,229,0.55)] focus:outline-none focus:ring-2 focus:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm;
+  }
+  .section-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600/80;
+  }
+}
