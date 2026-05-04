@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function SignInPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; email?: string; callbackUrl?: string }>;
 }) {
   return (
     <main className="relative flex min-h-screen items-center justify-center px-6 py-12">
@@ -26,10 +26,15 @@ export default function SignInPage({
 async function SignInCard({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; email?: string; callbackUrl?: string }>;
 }) {
   const params = (await searchParams) ?? {};
   const error = params.error;
+  const prefillEmail = params.email ?? "";
+  const callbackUrl =
+    params.callbackUrl && params.callbackUrl.startsWith("/")
+      ? params.callbackUrl
+      : "/";
   return (
     <div className="w-full max-w-md animate-fade-in-up">
       <div className="mb-6 flex items-center justify-center gap-2 text-slate-600">
@@ -62,11 +67,13 @@ async function SignInCard({
                 type="email"
                 required
                 autoComplete="email"
+                defaultValue={prefillEmail}
                 placeholder="vous@entreprise.com"
                 className="w-full bg-transparent px-3 py-2 text-sm text-slate-800 outline-none"
               />
             </div>
           </label>
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
           <button type="submit" className="btn-primary w-full">
             Envoyer le lien de connexion
           </button>

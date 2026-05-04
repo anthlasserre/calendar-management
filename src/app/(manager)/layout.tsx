@@ -9,6 +9,7 @@ import {
   LogOut,
   Settings as SettingsIcon,
   Sparkles,
+  Users,
 } from "@/components/icons";
 
 export default async function ManagerLayout({
@@ -47,6 +48,9 @@ export default async function ManagerLayout({
             </Link>
             <Link href="/embeds" className="btn-ghost">
               <Sparkles size={14} /> Widgets
+            </Link>
+            <Link href="/team" className="btn-ghost">
+              <Users size={14} /> Équipe
             </Link>
             <Link href="/settings" className="btn-ghost">
               <SettingsIcon size={14} /> Paramètres

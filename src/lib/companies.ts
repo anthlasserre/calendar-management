@@ -23,6 +23,36 @@ export async function getCompanyBySlug(slug: string): Promise<Company | null> {
   return result.rows[0] ?? null;
 }
 
+export type CompanyMember = {
+  userId: number;
+  email: string;
+  name: string | null;
+  joinedAt: string;
+};
+
+export async function listMembersOfCompany(
+  companyId: number,
+): Promise<CompanyMember[]> {
+  const result = await query<{
+    user_id: number;
+    email: string;
+    name: string | null;
+    joined_at: string;
+  }>(
+    `SELECT id AS user_id, email, name, created_at AS joined_at
+       FROM users
+      WHERE company_id = $1
+      ORDER BY created_at ASC`,
+    [companyId],
+  );
+  return result.rows.map((row) => ({
+    userId: row.user_id,
+    email: row.email,
+    name: row.name,
+    joinedAt: row.joined_at,
+  }));
+}
+
 export async function getCompanyForUserId(
   userId: number,
 ): Promise<Company | null> {

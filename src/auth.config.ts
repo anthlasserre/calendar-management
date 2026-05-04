@@ -16,6 +16,7 @@ export const authConfig = {
         path.startsWith("/auth/") ||
         path.startsWith("/api/auth/") ||
         path.startsWith("/c/") ||
+        path.startsWith("/invite/") ||
         path === "/favicon.ico";
 
       if (isPublic) return true;
