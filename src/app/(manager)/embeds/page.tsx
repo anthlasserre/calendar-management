@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { CopyableSnippet } from "@/components/CopyableSnippet";
+import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
 import { LinkChain, Sparkles } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -44,21 +44,6 @@ const WIDGETS: Widget[] = [
   },
 ];
 
-function buildIframeSnippet(
-  baseUrl: string,
-  path: string,
-  widget: Widget,
-): string {
-  return `<iframe
-  src="${baseUrl}${path}"
-  width="${widget.iframeWidth}"
-  height="${widget.iframeHeight}"
-  loading="lazy"
-  style="border:0;background:transparent"
-  title="Horaires du bureau">
-</iframe>`;
-}
-
 export default async function EmbedsPage() {
   const session = await auth();
   if (!session?.user?.companySlug) {
@@ -100,59 +85,20 @@ export default async function EmbedsPage() {
         </div>
       </section>
 
-      {WIDGETS.map((widget) => {
-        const path = widget.pathFromSlug(slug);
-        const snippet = buildIframeSnippet(baseUrl, path, widget);
-        return (
-          <section
-            key={widget.id}
-            className="surface-card-elevated p-6 sm:p-8"
-          >
-            <header className="mb-5">
-              <p className="section-eyebrow">{widget.id}</p>
-              <h3 className="mt-0.5 text-base font-semibold tracking-tight text-slate-900">
-                {widget.title}
-              </h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {widget.description}
-              </p>
-            </header>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div>
-                <p className="section-eyebrow mb-2">Aperçu en direct</p>
-                <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
-                  <iframe
-                    src={path}
-                    width={widget.iframeWidth}
-                    height={widget.iframeHeight}
-                    loading="lazy"
-                    style={{ border: 0, background: "transparent" }}
-                    title={widget.title}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <p className="section-eyebrow mb-2">Code à intégrer</p>
-                <CopyableSnippet code={snippet} />
-                <p className="mt-2 text-xs text-slate-400">
-                  URL directe :{" "}
-                  <a
-                    href={path}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand-600 hover:underline"
-                  >
-                    {baseUrl}
-                    {path}
-                  </a>
-                </p>
-              </div>
-            </div>
-          </section>
-        );
-      })}
+      {WIDGETS.map((widget) => (
+        <EmbedWidgetCard
+          key={widget.id}
+          baseUrl={baseUrl}
+          widget={{
+            id: widget.id,
+            title: widget.title,
+            description: widget.description,
+            path: widget.pathFromSlug(slug),
+            iframeWidth: widget.iframeWidth,
+            iframeHeight: widget.iframeHeight,
+          }}
+        />
+      ))}
     </main>
   );
 }

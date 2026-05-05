@@ -11,7 +11,7 @@ export default function CompanyEmbedLayout({
   return (
     <>
       <style>{`html,body{background:transparent !important;background-image:none !important;}`}</style>
-      <div className="inline-block bg-transparent p-2">
+      <div className="bg-transparent p-2">
         {children}
         <script
           dangerouslySetInnerHTML={{
