@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    "/**/*": ["./src/lib/schema.sql"],
+  },
   async headers() {
     return [
       {
