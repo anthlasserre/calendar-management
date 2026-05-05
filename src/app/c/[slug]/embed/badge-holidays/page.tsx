@@ -6,6 +6,7 @@ import {
 } from "@/lib/schedule";
 import { getCompanyBySlug } from "@/lib/companies";
 import { StatusBadge } from "@/components/StatusBadge";
+import { EmbedAlign } from "@/components/EmbedAlign";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -43,10 +44,12 @@ function buildHolidayLine(holiday: Holiday, today: Date): string {
 
 export default async function EmbedBadgeHolidaysPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ align?: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, { align }] = await Promise.all([params, searchParams]);
   const company = await getCompanyBySlug(slug);
   if (!company) notFound();
   const now = new Date();
@@ -56,17 +59,19 @@ export default async function EmbedBadgeHolidaysPage({
   ]);
 
   return (
-    <div className="inline-flex max-w-md flex-col items-start gap-2">
-      <StatusBadge status={status} />
-      {holiday ? (
-        <p className="text-xs leading-relaxed text-slate-600">
-          {buildHolidayLine(holiday, now)}
-        </p>
-      ) : (
-        <p className="text-xs italic leading-relaxed text-slate-400">
-          Aucune fermeture prévue dans les 15 prochains jours.
-        </p>
-      )}
-    </div>
+    <EmbedAlign align={align}>
+      <div className="inline-flex max-w-md flex-col items-start gap-2">
+        <StatusBadge status={status} />
+        {holiday ? (
+          <p className="text-xs leading-relaxed text-slate-600">
+            {buildHolidayLine(holiday, now)}
+          </p>
+        ) : (
+          <p className="text-xs italic leading-relaxed text-slate-400">
+            Aucune fermeture prévue dans les 15 prochains jours.
+          </p>
+        )}
+      </div>
+    </EmbedAlign>
   );
 }
