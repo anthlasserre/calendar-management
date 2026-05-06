@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import type { Company } from "@/lib/companies";
 
 type Props = {
+  companySlug: string;
   initialCompany: Company;
 };
 
-export function CompanySettingsForm({ initialCompany }: Props) {
+export function CompanySettingsForm({ companySlug, initialCompany }: Props) {
   const router = useRouter();
   const [name, setName] = useState(initialCompany.name);
   const [slug, setSlug] = useState(initialCompany.slug);
@@ -23,7 +24,7 @@ export function CompanySettingsForm({ initialCompany }: Props) {
     setFeedback(null);
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/company", {
+        const res = await fetch(`/api/admin/${companySlug}/company`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, slug, timezone }),
@@ -33,7 +34,11 @@ export function CompanySettingsForm({ initialCompany }: Props) {
           throw new Error(data.error ?? "Erreur lors de l'enregistrement.");
         }
         setFeedback({ type: "success", message: "Paramètres enregistrés." });
-        router.refresh();
+        if (slug !== companySlug) {
+          router.replace(`/${slug}/settings`);
+        } else {
+          router.refresh();
+        }
       } catch (error) {
         setFeedback({
           type: "error",

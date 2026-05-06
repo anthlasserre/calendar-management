@@ -10,18 +10,19 @@ import {
   formatYmd,
   nextOccurrencesOfWeekday,
   type RegularHour,
+  type TimeRange,
 } from "@/lib/schedule-types";
-import { Check, Repeat } from "@/components/icons";
+import { Check, Plus, Repeat, Trash } from "@/components/icons";
 
 type Props = {
+  companySlug: string;
   initialHours: RegularHour[];
 };
 
 type Row = {
   day_of_week: number;
   is_open: boolean;
-  open_time: string;
-  close_time: string;
+  ranges: TimeRange[];
   frequency_weeks: number;
   week_offset: number;
 };
@@ -33,18 +34,40 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
   month: "long",
 });
 
+const DEFAULT_RANGE: TimeRange = { open_time: "09:00", close_time: "18:00" };
+
 function toRow(h: RegularHour): Row {
   return {
     day_of_week: h.day_of_week,
     is_open: h.is_open,
-    open_time: h.open_time ?? "09:00",
-    close_time: h.close_time ?? "18:00",
+    ranges:
+      h.ranges.length > 0
+        ? h.ranges.map((r) => ({ ...r }))
+        : [{ ...DEFAULT_RANGE }],
     frequency_weeks: h.frequency_weeks,
     week_offset: h.week_offset,
   };
 }
 
-export function RegularHoursEditor({ initialHours }: Props) {
+function addMinutesToHHMM(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + minutes));
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function rangesOverlap(ranges: TimeRange[]): boolean {
+  const sorted = [...ranges].sort((a, b) =>
+    a.open_time.localeCompare(b.open_time),
+  );
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].open_time < sorted[i - 1].close_time) return true;
+  }
+  return false;
+}
+
+export function RegularHoursEditor({ companySlug, initialHours }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => initialHours.map(toRow));
   const [pending, startTransition] = useTransition();
@@ -60,6 +83,63 @@ export function RegularHoursEditor({ initialHours }: Props) {
   const updateRow = (day: number, patch: Partial<Row>) => {
     setRows((prev) =>
       prev.map((r) => (r.day_of_week === day ? { ...r, ...patch } : r)),
+    );
+  };
+
+  const updateRange = (
+    day: number,
+    index: number,
+    patch: Partial<TimeRange>,
+  ) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.day_of_week !== day) return r;
+        const ranges = r.ranges.map((rng, i) =>
+          i === index ? { ...rng, ...patch } : rng,
+        );
+        return { ...r, ranges };
+      }),
+    );
+  };
+
+  const addRange = (day: number) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.day_of_week !== day) return r;
+        const last = r.ranges[r.ranges.length - 1];
+        const nextOpen = last ? last.close_time : "14:00";
+        const nextClose = addMinutesToHHMM(nextOpen, 60);
+        return {
+          ...r,
+          ranges: [...r.ranges, { open_time: nextOpen, close_time: nextClose }],
+        };
+      }),
+    );
+  };
+
+  const removeRange = (day: number, index: number) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.day_of_week !== day) return r;
+        if (r.ranges.length <= 1) return r;
+        return { ...r, ranges: r.ranges.filter((_, i) => i !== index) };
+      }),
+    );
+  };
+
+  const onToggleOpen = (day: number, isOpen: boolean) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.day_of_week !== day) return r;
+        if (isOpen) {
+          return {
+            ...r,
+            is_open: true,
+            ranges: r.ranges.length > 0 ? r.ranges : [{ ...DEFAULT_RANGE }],
+          };
+        }
+        return { ...r, is_open: false };
+      }),
     );
   };
 
@@ -87,28 +167,42 @@ export function RegularHoursEditor({ initialHours }: Props) {
 
   const onSave = () => {
     setFeedback(null);
-    const invalid = rows.find(
-      (r) => r.is_open && r.open_time >= r.close_time,
-    );
-    if (invalid) {
-      setFeedback({
-        type: "error",
-        message: `L'heure de fermeture doit être après l'heure d'ouverture pour ${DAY_LABELS_FR[invalid.day_of_week]}.`,
-      });
-      return;
+
+    for (const row of rows) {
+      if (!row.is_open) continue;
+      for (const r of row.ranges) {
+        if (r.open_time >= r.close_time) {
+          setFeedback({
+            type: "error",
+            message: `L'heure de fermeture doit être après l'heure d'ouverture pour ${DAY_LABELS_FR[row.day_of_week]}.`,
+          });
+          return;
+        }
+      }
+      if (rangesOverlap(row.ranges)) {
+        setFeedback({
+          type: "error",
+          message: `Les plages horaires de ${DAY_LABELS_FR[row.day_of_week]} se chevauchent.`,
+        });
+        return;
+      }
     }
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/regular-hours", {
+        const res = await fetch(`/api/admin/${companySlug}/regular-hours`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hours: rows.map((r) => ({
               day_of_week: r.day_of_week,
               is_open: r.is_open,
-              open_time: r.is_open ? r.open_time : null,
-              close_time: r.is_open ? r.close_time : null,
+              ranges: r.is_open
+                ? r.ranges.map((rng) => ({
+                    open_time: rng.open_time,
+                    close_time: rng.close_time,
+                  }))
+                : [],
               frequency_weeks: r.is_open ? r.frequency_weeks : 1,
               week_offset: r.is_open ? r.week_offset : 0,
             })),
@@ -156,17 +250,15 @@ export function RegularHoursEditor({ initialHours }: Props) {
                   : "border-slate-200/70 bg-slate-50/60")
               }
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex cursor-pointer items-center gap-3 select-none">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <label className="flex cursor-pointer items-center gap-3 select-none pt-1.5">
                   <span className="relative inline-flex h-5 w-5 items-center justify-center">
                     <input
                       type="checkbox"
                       className="peer absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-md border border-slate-300 bg-white shadow-sm transition checked:border-brand-500 checked:bg-gradient-to-br checked:from-brand-500 checked:to-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200"
                       checked={row.is_open}
                       onChange={(e) =>
-                        updateRow(row.day_of_week, {
-                          is_open: e.target.checked,
-                        })
+                        onToggleOpen(row.day_of_week, e.target.checked)
                       }
                     />
                     <Check
@@ -185,29 +277,52 @@ export function RegularHoursEditor({ initialHours }: Props) {
                 </label>
 
                 {row.is_open ? (
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <span className="text-slate-400">de</span>
-                    <input
-                      type="time"
-                      value={row.open_time}
-                      onChange={(e) =>
-                        updateRow(row.day_of_week, {
-                          open_time: e.target.value,
-                        })
-                      }
-                      className="field-time"
-                    />
-                    <span className="text-slate-400">à</span>
-                    <input
-                      type="time"
-                      value={row.close_time}
-                      onChange={(e) =>
-                        updateRow(row.day_of_week, {
-                          close_time: e.target.value,
-                        })
-                      }
-                      className="field-time"
-                    />
+                  <div className="flex flex-1 flex-col items-stretch gap-2 sm:items-end">
+                    {row.ranges.map((range, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 text-sm text-slate-600"
+                      >
+                        <span className="text-slate-400">de</span>
+                        <input
+                          type="time"
+                          value={range.open_time}
+                          onChange={(e) =>
+                            updateRange(row.day_of_week, idx, {
+                              open_time: e.target.value,
+                            })
+                          }
+                          className="field-time"
+                        />
+                        <span className="text-slate-400">à</span>
+                        <input
+                          type="time"
+                          value={range.close_time}
+                          onChange={(e) =>
+                            updateRange(row.day_of_week, idx, {
+                              close_time: e.target.value,
+                            })
+                          }
+                          className="field-time"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeRange(row.day_of_week, idx)}
+                          disabled={row.ranges.length <= 1}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                          aria-label="Retirer la plage"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => addRange(row.day_of_week)}
+                      className="inline-flex items-center gap-1.5 self-end rounded-lg border border-dashed border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:border-brand-300 hover:bg-brand-50/40 hover:text-brand-700"
+                    >
+                      <Plus size={12} /> Ajouter une plage
+                    </button>
                   </div>
                 ) : (
                   <span className="text-sm italic text-slate-400">Fermé</span>

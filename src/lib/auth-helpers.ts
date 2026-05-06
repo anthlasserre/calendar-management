@@ -1,22 +1,18 @@
 import { auth } from "@/auth";
 import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
+import {
+  getCompanyBySlug,
+  userBelongsToCompany,
+  type Company,
+} from "@/lib/companies";
 
-export async function getSessionWithCompany(): Promise<{
-  session: Session;
-  companyId: number;
-} | null> {
-  const session = await auth();
-  if (!session?.user?.companyId) return null;
-  return { session, companyId: session.user.companyId };
-}
-
-export async function requireApiCompany(): Promise<
-  | { ok: true; session: Session; companyId: number }
+export async function requireCompanyContext(companySlug: string): Promise<
+  | { ok: true; session: Session; company: Company }
   | { ok: false; response: NextResponse }
 > {
-  const ctx = await getSessionWithCompany();
-  if (!ctx) {
+  const session = await auth();
+  if (!session?.user?.id) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -25,5 +21,26 @@ export async function requireApiCompany(): Promise<
       ),
     };
   }
-  return { ok: true, ...ctx };
+
+  const company = await getCompanyBySlug(companySlug);
+  if (!company) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Company not found." },
+        { status: 404 },
+      ),
+    };
+  }
+
+  const userId = Number(session.user.id);
+  const allowed = await userBelongsToCompany(userId, company.id);
+  if (!allowed) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Forbidden." }, { status: 403 }),
+    };
+  }
+
+  return { ok: true, session, company };
 }

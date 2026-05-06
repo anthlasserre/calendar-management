@@ -19,12 +19,18 @@ type PendingInvitation = {
 };
 
 type Props = {
+  companySlug: string;
   members: CompanyMember[];
   pending: PendingInvitation[];
   currentUserId: number;
 };
 
-export function TeamMembersPanel({ members, pending, currentUserId }: Props) {
+export function TeamMembersPanel({
+  companySlug,
+  members,
+  pending,
+  currentUserId,
+}: Props) {
   return (
     <div className="space-y-8">
       <section>
@@ -65,7 +71,11 @@ export function TeamMembersPanel({ members, pending, currentUserId }: Props) {
           </h3>
           <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
             {pending.map((inv) => (
-              <PendingRow key={inv.id} invitation={inv} />
+              <PendingRow
+                key={inv.id}
+                companySlug={companySlug}
+                invitation={inv}
+              />
             ))}
           </ul>
         </section>
@@ -74,7 +84,13 @@ export function TeamMembersPanel({ members, pending, currentUserId }: Props) {
   );
 }
 
-function PendingRow({ invitation }: { invitation: PendingInvitation }) {
+function PendingRow({
+  companySlug,
+  invitation,
+}: {
+  companySlug: string;
+  invitation: PendingInvitation;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -84,9 +100,10 @@ function PendingRow({ invitation }: { invitation: PendingInvitation }) {
       return;
     setError(null);
     startTransition(async () => {
-      const res = await fetch(`/api/admin/invitations/${invitation.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/admin/${companySlug}/invitations/${invitation.id}`,
+        { method: "DELETE" },
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Échec de la révocation.");

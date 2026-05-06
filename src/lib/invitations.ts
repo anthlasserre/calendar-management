@@ -209,7 +209,14 @@ export async function acceptInvitation(params: {
     }
 
     await client.query(
-      `UPDATE users SET company_id = $1 WHERE id = $2`,
+      `INSERT INTO user_company_memberships (user_id, company_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [params.userId, invite.company_id],
+    );
+
+    await client.query(
+      `UPDATE users SET current_company_id = $1 WHERE id = $2`,
       [invite.company_id, params.userId],
     );
 
