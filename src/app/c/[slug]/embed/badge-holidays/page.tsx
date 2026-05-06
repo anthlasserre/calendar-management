@@ -6,7 +6,19 @@ import {
 } from "@/lib/schedule";
 import { getCompanyBySlug } from "@/lib/companies";
 import { StatusBadge } from "@/components/StatusBadge";
-import { EmbedAlign } from "@/components/EmbedAlign";
+import { EmbedAlign, normalizeAlign } from "@/components/EmbedAlign";
+
+const ITEMS_CLASS = {
+  left: "items-start",
+  center: "items-center",
+  right: "items-end",
+} as const;
+
+const TEXT_CLASS = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+} as const;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,17 +69,18 @@ export default async function EmbedBadgeHolidaysPage({
     computeStatusForDate(company.id, now),
     getCurrentOrUpcomingHoliday(company.id, 15, now),
   ]);
+  const alignment = normalizeAlign(align);
 
   return (
     <EmbedAlign align={align}>
-      <div className="inline-flex max-w-md flex-col items-start gap-2">
+      <div className={`inline-flex max-w-md flex-col gap-2 ${ITEMS_CLASS[alignment]}`}>
         <StatusBadge status={status} />
         {holiday ? (
-          <p className="text-xs leading-relaxed text-slate-600">
+          <p className={`text-xs leading-relaxed text-slate-600 ${TEXT_CLASS[alignment]}`}>
             {buildHolidayLine(holiday, now)}
           </p>
         ) : (
-          <p className="text-xs italic leading-relaxed text-slate-400">
+          <p className={`text-xs italic leading-relaxed text-slate-400 ${TEXT_CLASS[alignment]}`}>
             Aucune fermeture prévue dans les 15 prochains jours.
           </p>
         )}
