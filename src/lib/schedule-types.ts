@@ -1,10 +1,14 @@
+export type TimeRange = {
+  open_time: string;
+  close_time: string;
+};
+
 export type RegularHour = {
   day_of_week: number;
   is_open: boolean;
-  open_time: string | null;
-  close_time: string | null;
   frequency_weeks: number;
   week_offset: number;
+  ranges: TimeRange[];
 };
 
 export type Holiday = {

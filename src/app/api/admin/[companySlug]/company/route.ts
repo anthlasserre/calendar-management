@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
-import { requireApiCompany } from "@/lib/auth-helpers";
-import { getCompanyById, updateCompany } from "@/lib/companies";
+import { requireCompanyContext } from "@/lib/auth-helpers";
+import { updateCompany } from "@/lib/companies";
 
 export const dynamic = "force-dynamic";
 
 const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
-export async function GET() {
-  const auth = await requireApiCompany();
+type RouteContext = { params: Promise<{ companySlug: string }> };
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
-  const company = await getCompanyById(auth.companyId);
-  return NextResponse.json({ company });
+  return NextResponse.json({ company: auth.company });
 }
 
-export async function PATCH(request: Request) {
-  const auth = await requireApiCompany();
+export async function PATCH(request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
 
   let payload: { name?: unknown; slug?: unknown; timezone?: unknown };
@@ -60,7 +63,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const company = await updateCompany(auth.companyId, patch);
+    const company = await updateCompany(auth.company.id, patch);
     return NextResponse.json({ company });
   } catch (error) {
     const code = (error as { code?: string }).code;

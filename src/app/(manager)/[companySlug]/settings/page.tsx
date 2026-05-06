@@ -1,20 +1,27 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getCompanyById } from "@/lib/companies";
+import { getCompanyBySlug, userBelongsToCompany } from "@/lib/companies";
 import { CompanySettingsForm } from "@/components/CompanySettingsForm";
 import { Settings as SettingsIcon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  params,
+}: {
+  params: Promise<{ companySlug: string }>;
+}) {
   const session = await auth();
-  if (!session?.user?.companyId) {
-    redirect("/sign-in");
-  }
-  const company = await getCompanyById(session.user.companyId);
-  if (!company) {
-    redirect("/sign-in");
-  }
+  if (!session?.user?.id) redirect("/sign-in");
+
+  const { companySlug } = await params;
+  const company = await getCompanyBySlug(companySlug);
+  if (!company) notFound();
+  const allowed = await userBelongsToCompany(
+    Number(session.user.id),
+    company.id,
+  );
+  if (!allowed) notFound();
 
   return (
     <main className="space-y-8">
@@ -35,7 +42,10 @@ export default async function SettingsPage() {
             </p>
           </div>
         </header>
-        <CompanySettingsForm initialCompany={company} />
+        <CompanySettingsForm
+          companySlug={company.slug}
+          initialCompany={company}
+        />
       </section>
     </main>
   );

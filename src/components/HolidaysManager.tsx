@@ -6,6 +6,7 @@ import type { Holiday } from "@/lib/schedule-types";
 import { CalendarPlus, CalendarRange, Plus, Trash } from "@/components/icons";
 
 type Props = {
+  companySlug: string;
   initialHolidays: Holiday[];
 };
 
@@ -22,7 +23,7 @@ function formatRange(start: string, end: string): string {
   return `${DATE_FORMATTER.format(s)} → ${DATE_FORMATTER.format(e)}`;
 }
 
-export function HolidaysManager({ initialHolidays }: Props) {
+export function HolidaysManager({ companySlug, initialHolidays }: Props) {
   const router = useRouter();
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [name, setName] = useState("");
@@ -56,7 +57,7 @@ export function HolidaysManager({ initialHolidays }: Props) {
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/closures", {
+        const res = await fetch(`/api/admin/${companySlug}/closures`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -86,7 +87,7 @@ export function HolidaysManager({ initialHolidays }: Props) {
   const onDelete = (id: number) => {
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/admin/closures/${id}`, {
+        const res = await fetch(`/api/admin/${companySlug}/closures/${id}`, {
           method: "DELETE",
         });
         if (!res.ok) {

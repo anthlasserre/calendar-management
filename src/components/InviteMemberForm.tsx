@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Plus } from "@/components/icons";
 
-export function InviteMemberForm() {
+type Props = { companySlug: string };
+
+export function InviteMemberForm({ companySlug }: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [pending, startTransition] = useTransition();
@@ -19,7 +21,7 @@ export function InviteMemberForm() {
     if (!value) return;
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/invitations", {
+        const res = await fetch(`/api/admin/${companySlug}/invitations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: value }),

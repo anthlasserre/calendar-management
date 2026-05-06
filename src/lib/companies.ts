@@ -39,10 +39,11 @@ export async function listMembersOfCompany(
     name: string | null;
     joined_at: string;
   }>(
-    `SELECT id AS user_id, email, name, created_at AS joined_at
-       FROM users
-      WHERE company_id = $1
-      ORDER BY created_at ASC`,
+    `SELECT u.id AS user_id, u.email, u.name, m.created_at AS joined_at
+       FROM user_company_memberships m
+       JOIN users u ON u.id = m.user_id
+      WHERE m.company_id = $1
+      ORDER BY m.created_at ASC`,
     [companyId],
   );
   return result.rows.map((row) => ({
@@ -53,13 +54,51 @@ export async function listMembersOfCompany(
   }));
 }
 
+export async function listCompaniesForUser(
+  userId: number,
+): Promise<Company[]> {
+  const result = await query<Company>(
+    `SELECT c.id, c.slug, c.name, c.timezone
+       FROM user_company_memberships m
+       JOIN companies c ON c.id = m.company_id
+      WHERE m.user_id = $1
+      ORDER BY c.name ASC`,
+    [userId],
+  );
+  return result.rows;
+}
+
+export async function userBelongsToCompany(
+  userId: number,
+  companyId: number,
+): Promise<boolean> {
+  const result = await query(
+    `SELECT 1 FROM user_company_memberships
+      WHERE user_id = $1 AND company_id = $2`,
+    [userId, companyId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function setCurrentCompany(
+  userId: number,
+  companyId: number,
+): Promise<void> {
+  const allowed = await userBelongsToCompany(userId, companyId);
+  if (!allowed) throw new Error("User is not a member of this company.");
+  await query(
+    `UPDATE users SET current_company_id = $1 WHERE id = $2`,
+    [companyId, userId],
+  );
+}
+
 export async function getCompanyForUserId(
   userId: number,
 ): Promise<Company | null> {
   const result = await query<Company>(
     `SELECT c.id, c.slug, c.name, c.timezone
        FROM users u
-       JOIN companies c ON c.id = u.company_id
+       JOIN companies c ON c.id = u.current_company_id
       WHERE u.id = $1`,
     [userId],
   );
@@ -94,14 +133,12 @@ function deriveCompanyDefaults(email: string): { name: string; baseSlug: string 
   return { name, baseSlug };
 }
 
-export async function ensureCompanyForUser(
-  userId: number,
-  email: string,
-): Promise<Company> {
-  const existing = await getCompanyForUserId(userId);
-  if (existing) return existing;
-
-  const { name, baseSlug } = deriveCompanyDefaults(email);
+async function provisionCompany(params: {
+  userId: number;
+  name: string;
+  baseSlug: string;
+}): Promise<Company> {
+  const { userId, name, baseSlug } = params;
 
   const client = await pool.connect();
   try {
@@ -126,7 +163,14 @@ export async function ensureCompanyForUser(
     const company = created.rows[0];
 
     await client.query(
-      `UPDATE users SET company_id = $1 WHERE id = $2`,
+      `INSERT INTO user_company_memberships (user_id, company_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, company.id],
+    );
+
+    await client.query(
+      `UPDATE users SET current_company_id = $1 WHERE id = $2`,
       [company.id, userId],
     );
 
@@ -147,6 +191,27 @@ export async function ensureCompanyForUser(
   } finally {
     client.release();
   }
+}
+
+export async function ensureCompanyForUser(
+  userId: number,
+  email: string,
+): Promise<Company> {
+  const existing = await getCompanyForUserId(userId);
+  if (existing) return existing;
+
+  const { name, baseSlug } = deriveCompanyDefaults(email);
+  return provisionCompany({ userId, name, baseSlug });
+}
+
+export async function createCompanyForUser(
+  userId: number,
+  name: string,
+): Promise<Company> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Le nom de l'entreprise est requis.");
+  const baseSlug = slugify(trimmed) || "entreprise";
+  return provisionCompany({ userId, name: trimmed.slice(0, 120), baseSlug });
 }
 
 export async function updateCompany(

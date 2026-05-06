@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiCompany } from "@/lib/auth-helpers";
-import { getCompanyById } from "@/lib/companies";
+import { requireCompanyContext } from "@/lib/auth-helpers";
 import {
   createOrRefreshInvitation,
   listPendingInvitations,
@@ -8,6 +7,8 @@ import {
 import { renderInvitationEmail, sendEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+type RouteContext = { params: Promise<{ companySlug: string }> };
 
 function buildInviteUrl(token: string): string {
   const base =
@@ -17,17 +18,18 @@ function buildInviteUrl(token: string): string {
   return `${base.replace(/\/$/, "")}/invite/${token}`;
 }
 
-export async function GET() {
-  const auth = await requireApiCompany();
+export async function GET(_request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
-  const invitations = await listPendingInvitations(auth.companyId);
-  // Hide raw tokens from the listing — only the email + dates are useful in the UI.
+  const invitations = await listPendingInvitations(auth.company.id);
   const safe = invitations.map(({ token: _token, ...rest }) => rest);
   return NextResponse.json({ invitations: safe });
 }
 
-export async function POST(request: Request) {
-  const auth = await requireApiCompany();
+export async function POST(request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
 
   let payload: { email?: unknown };
@@ -44,15 +46,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const company = await getCompanyById(auth.companyId);
-  if (!company) {
-    return NextResponse.json({ error: "Company not found." }, { status: 404 });
-  }
-
   let invitation;
   try {
     invitation = await createOrRefreshInvitation({
-      companyId: auth.companyId,
+      companyId: auth.company.id,
       email: payload.email.trim(),
       invitedBy: Number(auth.session.user.id),
     });
@@ -66,7 +63,7 @@ export async function POST(request: Request) {
   const url = buildInviteUrl(invitation.token);
   const { subject, html, text } = renderInvitationEmail({
     url,
-    companyName: company.name,
+    companyName: auth.company.name,
     inviterEmail: auth.session.user.email ?? null,
   });
   try {
@@ -78,7 +75,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Strip the raw token from the response.
   const { token: _token, ...safe } = invitation;
   return NextResponse.json({ invitation: safe }, { status: 201 });
 }

@@ -4,6 +4,7 @@ import {
   formatYmd,
   type Holiday,
   type RegularHour,
+  type TimeRange,
 } from "./schedule-types";
 
 export {
@@ -18,22 +19,60 @@ export {
   nextOccurrencesOfWeekday,
   type Holiday,
   type RegularHour,
+  type TimeRange,
 } from "./schedule-types";
+
+type RegularHourJoinRow = {
+  day_of_week: number;
+  is_open: boolean;
+  frequency_weeks: number;
+  week_offset: number;
+  open_time: string | null;
+  close_time: string | null;
+};
 
 export async function getRegularHours(
   companyId: number,
 ): Promise<RegularHour[]> {
-  const result = await query<RegularHour>(
-    `SELECT day_of_week, is_open,
-            to_char(open_time, 'HH24:MI') AS open_time,
-            to_char(close_time, 'HH24:MI') AS close_time,
-            frequency_weeks, week_offset
-       FROM regular_hours
-      WHERE company_id = $1
-      ORDER BY day_of_week`,
+  const result = await query<RegularHourJoinRow>(
+    `SELECT h.day_of_week,
+            h.is_open,
+            h.frequency_weeks,
+            h.week_offset,
+            to_char(r.open_time,  'HH24:MI') AS open_time,
+            to_char(r.close_time, 'HH24:MI') AS close_time
+       FROM regular_hours h
+       LEFT JOIN regular_hour_ranges r
+         ON r.company_id = h.company_id AND r.day_of_week = h.day_of_week
+      WHERE h.company_id = $1
+      ORDER BY h.day_of_week ASC, r.open_time ASC NULLS LAST`,
     [companyId],
   );
-  return result.rows;
+
+  const byDay = new Map<number, RegularHour>();
+  for (const row of result.rows) {
+    let day = byDay.get(row.day_of_week);
+    if (!day) {
+      day = {
+        day_of_week: row.day_of_week,
+        is_open: row.is_open,
+        frequency_weeks: row.frequency_weeks,
+        week_offset: row.week_offset,
+        ranges: [],
+      };
+      byDay.set(row.day_of_week, day);
+    }
+    if (row.open_time && row.close_time) {
+      day.ranges.push({
+        open_time: row.open_time,
+        close_time: row.close_time,
+      });
+    }
+  }
+
+  return Array.from(byDay.values()).sort(
+    (a, b) => a.day_of_week - b.day_of_week,
+  );
 }
 
 export async function getHolidays(
@@ -69,6 +108,23 @@ export type OpenStatus =
       next_opening?: { date: string; open_time: string };
     };
 
+function pickRangeAt(ranges: TimeRange[], hhmm: string): TimeRange | null {
+  for (const r of ranges) {
+    if (hhmm >= r.open_time && hhmm < r.close_time) return r;
+  }
+  return null;
+}
+
+function nextRangeAfter(ranges: TimeRange[], hhmm: string): TimeRange | null {
+  let best: TimeRange | null = null;
+  for (const r of ranges) {
+    if (r.open_time > hhmm) {
+      if (!best || r.open_time < best.open_time) best = r;
+    }
+  }
+  return best;
+}
+
 async function findNextOpening(
   companyId: number,
   reference: Date,
@@ -82,18 +138,25 @@ async function findNextOpening(
       reference.getDate() + i,
     );
     const dow = candidate.getDay();
-    const row = hours.find((h) => h.day_of_week === dow);
-    if (!row || !row.is_open || !row.open_time || !row.close_time) continue;
-    if (!dateMatchesFrequency(candidate, row.frequency_weeks, row.week_offset)) {
+    const day = hours.find((h) => h.day_of_week === dow);
+    if (!day || !day.is_open || day.ranges.length === 0) continue;
+    if (!dateMatchesFrequency(candidate, day.frequency_weeks, day.week_offset)) {
       continue;
     }
 
+    let candidateRange: TimeRange | null;
     if (i === 0) {
       const hhmm = `${String(reference.getHours()).padStart(2, "0")}:${String(
         reference.getMinutes(),
       ).padStart(2, "0")}`;
-      if (hhmm >= row.open_time) continue;
+      candidateRange = nextRangeAfter(day.ranges, hhmm);
+    } else {
+      candidateRange = day.ranges.reduce<TimeRange | null>(
+        (acc, r) => (!acc || r.open_time < acc.open_time ? r : acc),
+        null,
+      );
     }
+    if (!candidateRange) continue;
 
     const ymd = formatYmd(candidate);
     const holidayHit = await query<{ id: number }>(
@@ -105,7 +168,7 @@ async function findNextOpening(
     );
     if (holidayHit.rows.length > 0) continue;
 
-    return { date: formatYmd(candidate), open_time: row.open_time };
+    return { date: formatYmd(candidate), open_time: candidateRange.open_time };
   }
 
   return null;
@@ -149,24 +212,16 @@ export async function computeStatusForDate(
     };
   }
 
-  const regularResult = await query<RegularHour>(
-    `SELECT day_of_week, is_open,
-            to_char(open_time, 'HH24:MI') AS open_time,
-            to_char(close_time, 'HH24:MI') AS close_time,
-            frequency_weeks, week_offset
-       FROM regular_hours
-      WHERE company_id = $1 AND day_of_week = $2`,
-    [companyId, dow],
-  );
-
-  const today = regularResult.rows[0];
+  const dayHours = await getRegularHours(companyId);
+  const today = dayHours.find((h) => h.day_of_week === dow);
   const cycleMatches = today
     ? dateMatchesFrequency(date, today.frequency_weeks, today.week_offset)
     : false;
 
-  if (today?.is_open && today.open_time && today.close_time && cycleMatches) {
-    if (hhmm >= today.open_time && hhmm < today.close_time) {
-      return { open: true, closes_at: today.close_time, reason: "regular" };
+  if (today?.is_open && cycleMatches && today.ranges.length > 0) {
+    const active = pickRangeAt(today.ranges, hhmm);
+    if (active) {
+      return { open: true, closes_at: active.close_time, reason: "regular" };
     }
   }
 

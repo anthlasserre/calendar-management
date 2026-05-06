@@ -2,7 +2,7 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import PostgresAdapter from "@auth/pg-adapter";
 import { pool } from "@/lib/db";
 import { authConfig } from "./auth.config";
-import { ensureCompanyForUser, getCompanyForUserId } from "@/lib/companies";
+import { ensureCompanyForUser } from "@/lib/companies";
 import {
   acceptInvitation,
   findPendingInvitationsForEmail,
@@ -13,9 +13,6 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      companyId: number | null;
-      companySlug: string | null;
-      companyName: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -79,11 +76,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.userId ?? "");
-        const userId = token.userId ? Number(token.userId) : null;
-        const company = userId ? await getCompanyForUserId(userId) : null;
-        session.user.companyId = company?.id ?? null;
-        session.user.companySlug = company?.slug ?? null;
-        session.user.companyName = company?.name ?? null;
       }
       return session;
     },

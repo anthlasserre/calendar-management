@@ -1,6 +1,10 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { listMembersOfCompany } from "@/lib/companies";
+import {
+  getCompanyBySlug,
+  listMembersOfCompany,
+  userBelongsToCompany,
+} from "@/lib/companies";
 import { listPendingInvitations } from "@/lib/invitations";
 import { InviteMemberForm } from "@/components/InviteMemberForm";
 import { TeamMembersPanel } from "@/components/TeamMembersPanel";
@@ -8,15 +12,26 @@ import { Users } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-export default async function TeamPage() {
+export default async function TeamPage({
+  params,
+}: {
+  params: Promise<{ companySlug: string }>;
+}) {
   const session = await auth();
-  if (!session?.user?.companyId || !session.user.id) {
-    redirect("/sign-in");
-  }
-  const companyId = session.user.companyId;
+  if (!session?.user?.id) redirect("/sign-in");
+
+  const { companySlug } = await params;
+  const company = await getCompanyBySlug(companySlug);
+  if (!company) notFound();
+  const allowed = await userBelongsToCompany(
+    Number(session.user.id),
+    company.id,
+  );
+  if (!allowed) notFound();
+
   const [members, pending] = await Promise.all([
-    listMembersOfCompany(companyId),
-    listPendingInvitations(companyId),
+    listMembersOfCompany(company.id),
+    listPendingInvitations(company.id),
   ]);
 
   return (
@@ -37,11 +52,12 @@ export default async function TeamPage() {
             </p>
           </div>
         </header>
-        <InviteMemberForm />
+        <InviteMemberForm companySlug={company.slug} />
       </section>
 
       <section className="surface-card p-6 sm:p-8">
         <TeamMembersPanel
+          companySlug={company.slug}
           members={members}
           pending={pending.map((p) => ({
             id: p.id,
