@@ -1,24 +1,28 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getHolidays, type Holiday } from "@/lib/schedule";
-import { requireApiCompany } from "@/lib/auth-helpers";
+import { requireCompanyContext } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function GET(request: Request) {
-  const auth = await requireApiCompany();
+type RouteContext = { params: Promise<{ companySlug: string }> };
+
+export async function GET(request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const includePast = searchParams.get("include_past") === "true";
-  const closures = await getHolidays(auth.companyId, includePast);
+  const closures = await getHolidays(auth.company.id, includePast);
   return NextResponse.json({ closures });
 }
 
-export async function POST(request: Request) {
-  const auth = await requireApiCompany();
+export async function POST(request: Request, context: RouteContext) {
+  const { companySlug } = await context.params;
+  const auth = await requireCompanyContext(companySlug);
   if (!auth.ok) return auth.response;
 
   let payload: { name?: unknown; start_date?: unknown; end_date?: unknown };
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
      RETURNING id, name,
                to_char(start_date, 'YYYY-MM-DD') AS start_date,
                to_char(end_date,   'YYYY-MM-DD') AS end_date`,
-    [auth.companyId, name, startDate, endDate],
+    [auth.company.id, name, startDate, endDate],
   );
 
   return NextResponse.json(result.rows[0], { status: 201 });

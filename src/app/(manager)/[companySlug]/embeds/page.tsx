@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getCompanyBySlug, userBelongsToCompany } from "@/lib/companies";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
 import { LinkChain, Sparkles } from "@/components/icons";
 
@@ -44,12 +45,24 @@ const WIDGETS: Widget[] = [
   },
 ];
 
-export default async function EmbedsPage() {
+export default async function EmbedsPage({
+  params,
+}: {
+  params: Promise<{ companySlug: string }>;
+}) {
   const session = await auth();
-  if (!session?.user?.companySlug) {
-    redirect("/sign-in");
-  }
-  const slug = session.user.companySlug;
+  if (!session?.user?.id) redirect("/sign-in");
+
+  const { companySlug } = await params;
+  const company = await getCompanyBySlug(companySlug);
+  if (!company) notFound();
+  const allowed = await userBelongsToCompany(
+    Number(session.user.id),
+    company.id,
+  );
+  if (!allowed) notFound();
+
+  const slug = company.slug;
   const baseUrl = await getBaseUrl();
 
   return (
