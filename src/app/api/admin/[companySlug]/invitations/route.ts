@@ -12,8 +12,7 @@ type RouteContext = { params: Promise<{ companySlug: string }> };
 
 function buildInviteUrl(token: string): string {
   const base =
-    process.env.NEXTAUTH_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.AUTH_URL ??
     "http://localhost:3000";
   return `${base.replace(/\/$/, "")}/invite/${token}`;
 }
